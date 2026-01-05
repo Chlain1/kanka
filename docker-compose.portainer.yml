@@ -1,8 +1,10 @@
 version: "3.9"
 
 x-app-build: &app-build
-  context: .
-  dockerfile: Dockerfile
+  # Override BUILD_CONTEXT to point to your fork, e.g. https://github.com/youruser/kanka.git#main
+  context: ${BUILD_CONTEXT:-.}
+  # Override DOCKERFILE_PATH if the Dockerfile is not at the repo root
+  dockerfile: ${DOCKERFILE_PATH:-Dockerfile}
   target: php-runtime
 
 x-app-environment: &app-environment
@@ -74,8 +76,8 @@ services:
 
   web:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ${BUILD_CONTEXT:-.}
+      dockerfile: ${DOCKERFILE_PATH:-Dockerfile}
       target: nginx-runtime
     image: kanka-web:latest
     depends_on:

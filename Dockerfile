@@ -58,7 +58,6 @@ RUN composer install \
 # Build frontend assets
 ###############################
 FROM node:22-bookworm AS frontend
-ENV NODE_ENV=production
 WORKDIR /app
 
 RUN corepack enable && corepack prepare yarn@1.22.22 --activate
@@ -67,7 +66,7 @@ COPY package.json yarn.lock vite.config.js tailwind.config.js ./
 COPY resources ./resources
 COPY public ./public
 
-RUN yarn install --frozen-lockfile --non-interactive
+RUN yarn install --frozen-lockfile --non-interactive --production=false
 RUN yarn build
 
 ###############################
