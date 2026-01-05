@@ -66,7 +66,12 @@ COPY package.json yarn.lock vite.config.js tailwind.config.js ./
 COPY resources ./resources
 COPY public ./public
 
+ENV YARN_PRODUCTION=false \
+    NODE_ENV=development
 RUN yarn install --frozen-lockfile --non-interactive --production=false
+
+# Build assets in production mode
+ENV NODE_ENV=production
 RUN yarn build
 
 ###############################
