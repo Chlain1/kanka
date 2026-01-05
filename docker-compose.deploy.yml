@@ -1,0 +1,141 @@
+x-app-build: &app-build
+  context: .
+  dockerfile: Dockerfile
+  target: php-runtime
+
+x-app-environment: &app-environment
+  APP_ENV: production
+  APP_DEBUG: "false"
+  APP_URL: ${APP_URL:-http://localhost:8080}
+  APP_KEY: ${APP_KEY:?Set APP_KEY}
+  DB_CONNECTION: mysql
+  DB_HOST: db
+  DB_PORT: 3306
+  DB_DATABASE: ${DB_DATABASE:-kanka}
+  DB_USERNAME: ${DB_USERNAME:-kanka}
+  DB_PASSWORD: ${DB_PASSWORD:-kanka}
+  CACHE_DRIVER: redis
+  QUEUE_CONNECTION: redis
+  SESSION_DRIVER: redis
+  SESSION_LIFETIME: 120
+  REDIS_HOST: redis
+  FILESYSTEM_DISK: public
+  MEILISEARCH_HOST: http://meilisearch:7700
+
+services:
+  app:
+    build: *app-build
+    image: kanka-app:latest
+    env_file:
+      - .env
+    environment: *app-environment
+    volumes:
+      - storage:/var/www/html/storage
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      meilisearch:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - kanka
+
+  queue:
+    image: kanka-app:latest
+    build: *app-build
+    command: php artisan queue:work --verbose --tries=3 --timeout=90
+    env_file:
+      - .env
+    environment: *app-environment
+    volumes:
+      - storage:/var/www/html/storage
+    depends_on:
+      app:
+        condition: service_started
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - kanka
+
+  scheduler:
+    image: kanka-app:latest
+    build: *app-build
+    command: php artisan schedule:work
+    env_file:
+      - .env
+    environment: *app-environment
+    volumes:
+      - storage:/var/www/html/storage
+    depends_on:
+      app:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - kanka
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: nginx-runtime
+    image: kanka-web:latest
+    ports:
+      - "8080:80"
+    depends_on:
+      app:
+        condition: service_started
+    volumes:
+      - storage:/var/www/html/storage:ro
+    restart: unless-stopped
+    networks:
+      - kanka
+
+  db:
+    image: mariadb:11
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-kanka}
+      MYSQL_USER: ${DB_USERNAME:-kanka}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-kanka}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+      MYSQL_ROOT_HOST: "%"
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      retries: 3
+      timeout: 5s
+    restart: unless-stopped
+    networks:
+      - kanka
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    networks:
+      - kanka
+
+  meilisearch:
+    image: getmeili/meilisearch:latest
+    environment:
+      MEILI_NO_ANALYTICS: "true"
+      MEILI_MASTER_KEY: ${MEILISEARCH_KEY:-changeme}
+    volumes:
+      - meili-data:/meili_data
+    restart: unless-stopped
+    networks:
+      - kanka
+
+volumes:
+  storage:
+  db-data:
+  redis-data:
+  meili-data:
+
+networks:
+  kanka:
+    driver: bridge
