@@ -26,7 +26,7 @@ RUN apt-get update && apt-get install -y \
     libcurl4-openssl-dev \
     pkg-config \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j"$(nproc)" pdo_mysql gd intl zip opcache pcntl \
+    && docker-php-ext-install -j"$(nproc)" pdo_mysql gd intl zip opcache pcntl bcmath \
     && pecl install redis \
     && docker-php-ext-enable redis \
     && usermod -u "${WWWUSER}" www-data && groupmod -g "${WWWGROUP}" www-data \
